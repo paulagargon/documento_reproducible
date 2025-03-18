@@ -74,7 +74,7 @@ Usamos unos datos recogidos en diferentes parcelas de Sierra Nevada, situadas a 
 diversidad <- read.csv("../data/diversidad.csv")
 diversidad <- as_tibble(diversidad)
 ggplot(diversidad, aes(x = altitud, y = n_species)) +
-  geom_point() +
+  geom_point(shape = 22, colour = "darkgreen", fill = "darkgreen") +
   labs(x = "Altitud (m)",
        y = "Número de especies")
 
