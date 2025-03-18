@@ -28,6 +28,8 @@ library(leaflet)
 
 Nos encontramos en el **Parque Nacional de Sierra Nevada**, en la provincia de Granada. Sierra Nevada es una formación montañosa situada en España, que forma parte de las cordilleras Béticas, específicamente del sistema Penibético. Se extiende entre las provincias de Granada y Almería y destaca por ser el macizo más alto de Europa occidental después de los Alpes. Su punto más elevado es el pico Mulhacén, con 3479 metros sobre el nivel del mar. En 1986, la Unesco la reconoció como Reserva de la Biosfera, y en 1989 gran parte de su superficie fue designada como parque natural. Posteriormente, en 1999, una extensa área fue declarada parque nacional debido a su riqueza botánica, paisajística y natural [@blanca_threatened_1998].
 
+Este texto es un ejemplo para la parte del control de versiones.
+
 ```{r mapa, echo=FALSE, eval=FALSE, fig.cap="Mapa de localización de la zona de estudio"}
 
 # Mapa interactivo con leaflet
