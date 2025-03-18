@@ -1,5 +1,5 @@
 ---
-title: "Caso práctico"
+title: "Ejercicio reproducibilidad y control de versiones"
 author: "Paula García González"
 date: "2025-01-22"
 output:
