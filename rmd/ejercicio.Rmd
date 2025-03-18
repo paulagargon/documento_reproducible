@@ -1,0 +1,285 @@
+---
+title: "Caso práctico"
+author: "Paula García González"
+date: "2025-01-22"
+output:
+  pdf_document:
+    number_sections: true
+    fig_caption: true
+csl: apa.csl
+bibliography: bibliografia.bib
+---
+
+```{r paquetes, include=FALSE}
+# Cargamos paquetes necesarios
+library(tibble)
+library(ggplot2)
+library(tidyverse)
+library(knitr)
+library(broom)
+library(leaflet)
+library(mapSpain)
+library(stringr)
+library(leaflet)
+```
+
+# Sitio de estudio
+## Descripción del lugar
+
+Nos encontramos en el **Parque Nacional de Sierra Nevada**, en la provincia de Granada. Sierra Nevada es una formación montañosa situada en España, que forma parte de las cordilleras Béticas, específicamente del sistema Penibético. Se extiende entre las provincias de Granada y Almería y destaca por ser el macizo más alto de Europa occidental después de los Alpes. Su punto más elevado es el pico Mulhacén, con 3479 metros sobre el nivel del mar. En 1986, la Unesco la reconoció como Reserva de la Biosfera, y en 1989 gran parte de su superficie fue designada como parque natural. Posteriormente, en 1999, una extensa área fue declarada parque nacional debido a su riqueza botánica, paisajística y natural [@blanca_threatened_1998].
+
+```{r mapa, echo=FALSE, eval=FALSE, fig.cap="Mapa de localización de la zona de estudio"}
+
+# Mapa interactivo con leaflet
+leaflet() |> 
+  addProviderEspTiles("IGNBase.Gris", group = "Base") |> 
+  addProviderTiles("Esri.WorldImagery", 
+                   group = "World Imagery (ESRI)",
+                   options = providerTileOptions(maxZoom = 25)) |> 
+  setView(lng = -3.099429, lat = 37.122408, zoom = 20) |>
+  addMarkers(lng = -3.099429, lat = 37.122408, popup = "Zona de Estudio") |> 
+  addLayersControl(
+        position = "bottomright",
+        baseGroups = c("World Imagery (ESRI)", "Base"),
+        options = layersControlOptions(collapsed = TRUE) 
+      ) 
+  
+```
+
+
+# Flora
+
+En Sierra Nevada se han identificado más de 2.100 especies de plantas vasculares, convirtiéndola en una de las regiones con mayor diversidad y riqueza de flora en el Mediterráneo occidental. Entre estas especies, destaca un elevado número de endemismos exclusivos de la zona. Además, se han catalogado 116 taxones con distribución limitada y en riesgo de extinción, lo que resalta la importancia de proteger esta biodiversidad. La singularidad de la flora local también se refleja en la presencia de numerosas especies ibero-norteafricanas, que representan entre un 10% y un 12% del total [@blanca_threatened_1998], incluyendo ejemplares como *Adenocarpus decorticans*, *Arenaria pungens*, *Crocus nevadensis*, *Draba hispanica*, *Festuca scariosa*, *Genista umbellata*, *Hormathophylla spinosa*, *Lonicera arborea*, *Ononis speciosa*, *Ranunculus granatensis*, *Stipa tenacissima* y *Thymus serpylloides subsp. gadorensis*.
+
+![*Crocus nevadensis* en flor. De [floradeandalucia.es](https://www.florandalucia.es/index.php/crocus-nevadensis)](../auxiliar/crocus_nevadensis.jpg)
+
+# Fauna (artrópodos)
+
+Sierra Nevada alberga 146 taxones estrictamente endémicos, que incluyen 128 especies y 18 subespecies, además de 35 subendémicos, compuestos por 29 especies y 6 subespecies. Entre ellos se encuentran seis géneros únicos de esta región: *Roeweritta* (Opiliones), *Nevada* (Trombidiiformes), *Eulithinus* (Dermaptera), *Baetica* (Orthoptera), *Montanacalles* (Coleoptera) y *Pseudorhaconotus* (Hymenoptera), lo que resalta la singularidad biológica de esta área [@tinaut_artropodos_2024].
+
+![*Baetica ustulata* cubierto de polen. De [wikipedia.es](https://es.wikipedia.org/wiki/Baetica_ustulata)](../auxiliar/baetica_ustulata.jpg)
+
+# Análisis de datos
+
+## Diversidad a distintas alturas de Sierra Nevada
+
+Usamos unos datos recogidos en diferentes parcelas de Sierra Nevada, situadas a distintas alturas. En cada parcela se anotan el número de especies de fauna y flora identificadas.
+
+
+```{r gráfico, echo=FALSE, fig.width=4, fig.height=3, fig.cap="Diversidad de especies en Sierra Nevada por altitud"}
+
+#Cargamos nuestra tabla
+diversidad <- read.csv("../data/diversidad.csv")
+diversidad <- as_tibble(diversidad)
+ggplot(diversidad, aes(x = altitud, y = n_species)) +
+  geom_point() +
+  labs(x = "Altitud (m)",
+       y = "Número de especies")
+
+```
+
+## Datos climáticos de Sierra Nevada
+
+En Sierra Nevada la temperatura oscila drásticamente a lo largo de las estaciones. En este estudio hemos realizado toma de datos de la temperatura media mensual, la precipitación mensual y la evapotranspiración potencial mensual en diferentes parcelas de Sierra Nevada. Estas parcelas están seleccionadas según el tipo de vegetación presente y la altura a la que se encuentran.
+
+```{r datos climáticos, include=FALSE}
+
+# 1. Escribe un bucle que lea los archivos climáticos y los guarde en una lista, pero añadiendo el nombre de cada sitio (obtenido del nombre del archivo).
+
+clima <- list.files("../data/clima/")
+lista <- list()
+
+for (i in 1:length(clima)) {
+  lista[[i]] <- read.table(paste0("../data/clima/", clima[i]), sep = ",", header = TRUE)
+  names(lista)[i] <- clima[i]
+}
+
+clima_lista <- enframe(lista) # Tenemos una lista formada por una serie de listas, en total 12 listas, una para cada csv de clima. Cada lista tiene el nombre del propio csv.
+
+```
+
+
+```{r data frame, include=FALSE}
+# 2. ¿Podríamos generar un dataframe homogéneo a partir de la lista generada?
+
+clima_df <- as.data.frame(clima_lista)
+
+```
+
+## Temperatura media anual en cada parcela
+
+```{r tabla tª anual, echo=FALSE}
+# 3. Calcula los valores promedio de temperatura media anual por sitio; y por especie
+
+climaprom <- clima_lista |>
+  unnest_wider(value) |>
+  unnest(c(sp_elev, year, month, monthly_pet, monthly_tmed, monthly_prec)) |>
+  select(-name)
+
+temp_sp <- data.frame(
+  especie = c("P. halepensis", "P. nigra", "P. pinaster", "P. sylvestris"),
+  temperatura = NA
+)
+
+temp_sp$temperatura[1] <- climaprom |>
+  filter(str_detect(sp_elev, pattern = "halepensis")) |>
+  summarise(temperatura_media = mean(monthly_tmed))
+temp_sp$temperatura[2] <- climaprom |>
+  filter(str_detect(sp_elev, pattern = "nigra")) |>
+  summarise(temperatura_media = mean(monthly_tmed))
+temp_sp$temperatura[3] <- climaprom |>
+  filter(str_detect(sp_elev, pattern = "pinaster")) |>
+  summarise(temperatura_media = mean(monthly_tmed))
+temp_sp$temperatura[4] <- climaprom |>
+  filter(str_detect(sp_elev, pattern = "sylvestris")) |>
+  summarise(temperatura_media = mean(monthly_tmed))
+
+temp_sp |>
+  knitr::kable(caption = "Temperatura media anual por especie")
+
+temp_sitio <- data.frame(
+  especie = c("High", "Medium", "Low"),
+  temperatura = NA
+)
+
+temp_sitio$temperatura[1] <- climaprom |>
+  filter(str_detect(sp_elev, pattern = "high")) |>
+  summarise(temperatura_media = mean(monthly_tmed))
+temp_sitio$temperatura[2] <- climaprom |>
+  filter(str_detect(sp_elev, pattern = "medium")) |>
+  summarise(temperatura_media = mean(monthly_tmed))
+temp_sitio$temperatura[3] <- climaprom |>
+  filter(str_detect(sp_elev, pattern = "low")) |>
+  summarise(temperatura_media = mean(monthly_tmed))
+
+temp_sitio |>
+  knitr::kable(caption = "Temperatura media anual por sitio")
+
+```
+
+## Precipitación en cada parcela según sitio y según especie
+
+```{r precipitación sp, echo=FALSE, fig.width=4, fig.height=4}
+# 4. Calcula los valores promedio (y la desviación estándar) de la precitación acumulada anual por sitio; y por especie. ¿Podrías realizar un gráfico de barras con los promedios de la precipitación? ¿Y añadirle las desviaciones estándar?
+
+# Por especie
+precip_sp <- data.frame(
+  especie = c("P. halepensis", "P. nigra", "P. pinaster", "P. sylvestris"),
+  precipitacion = NA,
+  sd = NA
+)
+
+# P. halepensis
+precip_sp$precipitacion[1] <- climaprom |>
+  filter(str_detect(sp_elev, pattern = "halepensis")) |>
+  summarise(precipitacion_media = mean(monthly_prec))
+precip_sp$sd[1] <- climaprom |>
+  filter(str_detect(sp_elev, pattern = "halepensis")) |>
+  summarise(sd = sd(monthly_prec))
+
+# P. nigra
+precip_sp$precipitacion[2] <- climaprom |>
+  filter(str_detect(sp_elev, pattern = "nigra")) |>
+  summarise(precipitacion_media = mean(monthly_prec))
+precip_sp$sd[2] <- climaprom |>
+  filter(str_detect(sp_elev, pattern = "nigra")) |>
+  summarise(sd = sd(monthly_prec))
+
+# P. pinaster
+precip_sp$precipitacion[3] <- climaprom |>
+  filter(str_detect(sp_elev, pattern = "pinaster")) |>
+  summarise(precipitacion_media = mean(monthly_prec))
+precip_sp$sd[3] <- climaprom |>
+  filter(str_detect(sp_elev, pattern = "pinaster")) |>
+  summarise(sd = sd(monthly_prec))
+
+# P. sylvestris
+precip_sp$precipitacion[4] <- climaprom |>
+  filter(str_detect(sp_elev, pattern = "sylvestris")) |>
+  summarise(precipitacion_media = mean(monthly_prec))
+precip_sp$sd[4] <- climaprom |>
+  filter(str_detect(sp_elev, pattern = "sylvestris")) |>
+  summarise(sd = sd(monthly_prec))
+
+precip_sp |>
+  knitr::kable(caption = "Precipitación media anual por especie")
+
+```
+
+
+```{r precipitación sitio, echo=FALSE, fig.width=4, fig.height=4}
+# Por sitio
+
+precip_sitio <- data.frame(
+  sitio = c("High", "Medium", "Low"),
+  precipitacion = NA,
+  sd = NA
+)
+
+# High
+precip_sitio$precipitacion[1] <- climaprom |>
+  filter(str_detect(sp_elev, pattern = "high")) |>
+  summarise(precipitacion_media = mean(monthly_prec))
+precip_sitio$sd[1] <- climaprom |>
+  filter(str_detect(sp_elev, pattern = "high")) |>
+  summarise(sd = sd(monthly_prec))
+
+# Medium
+precip_sitio$precipitacion[2] <- climaprom |>
+  filter(str_detect(sp_elev, pattern = "medium")) |>
+  summarise(precipitacion_media = mean(monthly_prec))
+precip_sitio$sd[2] <- climaprom |>
+  filter(str_detect(sp_elev, pattern = "medium")) |>
+  summarise(sd = sd(monthly_prec))
+
+# Low
+precip_sitio$precipitacion[3] <- climaprom |>
+  filter(str_detect(sp_elev, pattern = "low")) |>
+  summarise(precipitacion_media = mean(monthly_prec))
+precip_sitio$sd[3] <- climaprom |>
+  filter(str_detect(sp_elev, pattern = "low")) |>
+  summarise(sd = sd(monthly_prec))
+
+
+precip_sitio |>
+  knitr::kable(caption = "Precipitación media anual por sitio")
+
+```
+
+```{r gráfico sitio-prec, echo=FALSE, fig.width=4, fig.height=4}
+# Convierte las columnas a vectores numéricos
+precip_sitio$precipitacion <- unlist(precip_sitio$precipitacion)
+precip_sitio$sd <- unlist(precip_sitio$sd)
+
+
+ggplot(precip_sitio, aes(x = sitio, y = precipitacion)) +
+  geom_bar(stat = "identity", fill = "lightblue", color = "darkgray") + # Barras
+  geom_errorbar(aes(ymin = precipitacion - sd, ymax = precipitacion + sd), 
+                width = 0.2, color = "darkblue") + # Error bars
+  labs(title = "Precipitacion por sitio",
+       x = "Sitio",
+       y = "Precipitacion (mm)") +
+  theme_minimal()
+
+```
+
+```{r gráfico sp-prec, echo=FALSE, fig.width=4, fig.height=4}
+# Convierte las columnas a vectores numéricos
+precip_sp$precipitacion <- unlist(precip_sp$precipitacion)
+precip_sp$sd <- unlist(precip_sp$sd)
+
+
+ggplot(precip_sp, aes(x = especie, y = precipitacion)) +
+  geom_bar(stat = "identity", fill = "lightgreen", color = "darkgray") + # Barras
+  geom_errorbar(aes(ymin = precipitacion - sd, ymax = precipitacion + sd), 
+                width = 0.2, color = "darkgreen") + # Error bars
+  labs(title = "Precipitacion por especie",
+       x = "Especie",
+       y = "Precipitacion (mm)") +
+  theme_minimal()
+
+```
+
+# Bibliografía
+
+

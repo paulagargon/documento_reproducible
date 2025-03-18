@@ -1,0 +1,4 @@
+"0","# 2. ¿Podríamos generar un dataframe homogéneo a partir de la lista generada?"
+"0",""
+"0","clima_df <- as.data.frame(clima_lista)"
+"0",""
